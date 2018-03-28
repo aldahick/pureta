@@ -11,27 +11,31 @@ export default class PluginLoader {
         name: string;
         main: string;
         dependencies: string[];
-    };
-    public plugin: Plugin;
+    } = <any>{};
+    public plugin: Plugin = <any>{};
     public isValid = false;
     /** {[key: url]: filename} */
     public assets: {[key: string]: string} = {};
     /** key: route */
     public controllers: {[key: string]: typeof Controller} = {};
     /** {[key: url]: filename} */
-    public views: {[key: string]: string};
+    public views: {[key: string]: string} = {};
 
     public constructor(baseDir: string) {
         this.baseDir = baseDir;
     }
 
-    public async load(app: Application): Promise<Plugin> {
+    public async load(app: Application): Promise<void> {
         const pluginFilename: string = path.resolve(this.baseDir, this.metadata.main);
         if (!await fs.pathExists(pluginFilename)) throw new Error("Couldn't find plugin file " + pluginFilename);
         const PluginConstructor: new(app: Application) => Plugin = require(pluginFilename).default;
         this.plugin = new PluginConstructor(app);
         this.plugin.registerHandlers();
-        return undefined;
+        await Promise.all([
+            this.loadAssets(),
+            this.loadControllers(),
+            this.loadViews()
+        ]);
     }
 
     public validateMetadata(): void {
@@ -43,16 +47,19 @@ export default class PluginLoader {
     }
 
     private loadAssets(): Promise<void[]> {
-        return Promise.all(this.plugin.dirs.asset.map(async dir => {
+        return Promise.all(this.plugin.dirs.asset!.map(async dir => {
             // const files: string[] = HelperFS
         }));
     }
 
-    private loadControllers(): Promise<void> {
-
+    private loadControllers(): Promise<void[]> {
+        return Promise.all(this.plugin.dirs.controller!.map(async dir => {
+        }));
     }
 
-    private loadViews(): Promise<void> {
+    private loadViews(): Promise<void[]> {
+        return Promise.all(this.plugin.dirs.view!.map(async dir => {
 
+        }));
     }
 }

@@ -1,4 +1,4 @@
 export default interface ServerOptions {
     port: number;
-    hostname: string;
+    hostname: string | undefined;
 }

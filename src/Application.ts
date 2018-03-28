@@ -10,16 +10,20 @@ import PluginLoader from "./PluginLoader";
 import Server from "./Server";
 
 export default class Application extends EventEmitter {
-    public logger: winston.LoggerInstance;
+    public logger: winston.LoggerInstance = <any>{};
     public plugins: {[key: string]: PluginLoader} = {};
-    public server: Server;
+    public server: Server = <any>{};
+
+    public constructor() {
+        super();
+    }
 
     public async start(): Promise<void> {
         this.logger = await this.setupLogger();
         await this.loadPlugins();
         await this.emit("app:start");
         this.logger.info("Starting HTTP server...");
-        // await this.server.start();
+        await this.server.start();
     }
 
     public async stop(): Promise<void> {
@@ -28,7 +32,7 @@ export default class Application extends EventEmitter {
     }
 
     private async setupLogger(): Promise<winston.LoggerInstance> {
-        const logDir = path.dirname(require.main.filename) + "/logs";
+        const logDir = path.dirname(require.main!.filename) + "/logs";
         await fs.mkdirp(logDir);
         return new winston.Logger({
             transports: [
@@ -41,7 +45,7 @@ export default class Application extends EventEmitter {
     }
 
     private async loadPlugins(): Promise<void> {
-        const baseDir = path.dirname(require.main.filename);
+        const baseDir = path.dirname(require.main!.filename);
         let pluginLoaders: PluginLoader[] = [new PluginLoader(baseDir)];
         for (const loader of pluginLoaders) {
             const metadata = await fs.readJSON(loader.baseDir + "/package.json");
