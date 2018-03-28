@@ -90,12 +90,15 @@ export default class Application extends EventEmitter {
         }
         pluginLoaders = pluginLoaders.filter(loader => loader.isValid);
         this.logger.info("Found plugins: %s", pluginLoaders.map(l => l.metadata.name).sort().join(", "));
-        await Promise.all(pluginLoaders.map(loader => loader.load()));
-        pluginLoaders.forEach(p => {
-            this.plugins[p.metadata.name] = p;
-            this.assets = _.defaults(p.assets, this.assets);
-            this.routes = _.defaults(p.routes, this.routes);
-            this.views = _.defaults(p.views, this.views);
-        });
+        await Promise.all(pluginLoaders.map(async loader => {
+            loader.on("load:route", (route: Route) => {
+                this.routes[route.url] = route;
+            });
+            await loader.load();
+            this.plugins[loader.metadata.name] = loader;
+            this.assets = _.defaults(loader.assets, this.assets);
+            this.routes = _.defaults(loader.routes, this.routes);
+            this.views = _.defaults(loader.views, this.views);
+        }));
     }
 }

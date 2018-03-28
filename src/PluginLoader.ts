@@ -1,4 +1,5 @@
 import { expect } from "chai";
+import * as chokidar from "chokidar";
 import * as events from "events";
 import * as fs from "fs-extra";
 import * as _ from "lodash";
@@ -11,6 +12,7 @@ import Application from "./Application";
 import Controller from "./api/Controller";
 import Plugin from "./api/Plugin";
 import Route from "./api/interfaces/Route";
+const requireReload: NodeRequire = require("require-reload");
 
 export default class PluginLoader extends events.EventEmitter {
     public app: Application;
@@ -22,6 +24,7 @@ export default class PluginLoader extends events.EventEmitter {
     } = <any>{};
     public plugin: Plugin = <any>{};
     public isValid = false;
+    public isLoaded = false;
     /** {[key: url]: filename} */
     public assets: {[key: string]: string} = {};
     /** key: route URL */
@@ -50,6 +53,7 @@ export default class PluginLoader extends events.EventEmitter {
             this.loadViews()
         ]);
         this.setupWatchers();
+        this.isLoaded = true;
     }
 
     public validateMetadata(): void {
@@ -74,12 +78,20 @@ export default class PluginLoader extends events.EventEmitter {
     }
 
     private setupWatchers(): void {
-
+        // TODO only if dev
+        chokidar.watch(this.plugin.dirs.controller || [], {
+            persistent: false
+        }).on("change", (filename: string) => {
+            const route = this.loadController(filename);
+            if (route) {
+                this.app.logger.info(`Reloaded controller: ${route.controller.prototype.constructor.name} (${route.url})`);
+            }
+        });
     }
 
     private loadController(filename: string): Route | undefined {
         if (!filename.endsWith(".js")) return undefined;
-        const Controller: new() => Controller = require(filename).default;
+        const Controller: new() => Controller = (this.isLoaded ? requireReload : require)(filename).default;
         const controller = new Controller();
         let url = controller.route.toString();
         if (!url.startsWith("/")) url = "/" + url; // absolute url
