@@ -40,7 +40,6 @@ export default class PluginLoader {
             this.loadControllers(),
             this.loadViews()
         ]);
-        app.logger.info("assets: %o", this.assets);
         this.setupWatchers();
     }
 
