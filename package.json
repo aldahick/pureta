@@ -30,6 +30,7 @@
     "@types/node": "^9.6.0",
     "@types/recursive-readdir": "^2.2.0",
     "@types/source-map-support": "^0.4.0",
+    "@types/stack-trace": "0.0.29",
     "@types/winston": "^2.3.8"
   },
   "dependencies": {
@@ -41,6 +42,7 @@
     "recursive-readdir": "^2.2.2",
     "reflect-metadata": "^0.1.12",
     "source-map-support": "^0.5.4",
+    "stack-trace": "0.0.10",
     "winston": "^2.4.1"
   }
 }
