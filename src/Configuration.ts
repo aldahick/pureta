@@ -1,5 +1,4 @@
 import * as fs from "fs-extra";
-import * as _ from "lodash";
 import HelperFS from "./helpers/fs";
 import HelperMisc from "./helpers/misc";
 
