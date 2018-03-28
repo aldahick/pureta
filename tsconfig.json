@@ -1,16 +1,24 @@
 {
   "compilerOptions": {
+    "declaration": true,
     "target": "es2017",
     "module": "commonjs",
+    "newLine": "lf",
     "noFallthroughCasesInSwitch": true,
     "noImplicitAny": true,
     "noImplicitReturns": true,
-    "sourceMap": true
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "sourceMap": true,
+    "rootDirs": ["./src"],
+    "outDir": "./lib"
   },
   "compileOnSave": true,
   "buildOnSave": false,
   "exclude": [
-    "node_modules"
+    "lib",
+    "node_modules",
+    "index.d.ts"
   ],
   "atom": {
     "rewriteTsconfig": false
