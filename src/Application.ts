@@ -5,6 +5,7 @@ sourcemap.install();
 import { EventEmitter } from "promise-events";
 import * as fs from "fs-extra";
 import * as path from "path";
+import * as util from "util";
 import * as winston from "winston";
 import PluginLoader from "./PluginLoader";
 import Server from "./Server";
@@ -43,7 +44,14 @@ export default class Application extends EventEmitter {
             },
             transports: [
                 new winston.transports.Console({
-                    colorize: true
+                    formatter(options: {
+                        timestamp: Date | false,
+                        level: string,
+                        message: string,
+                        meta: {[key: string]: any}
+                    }): string {
+                        return `(${(options.timestamp || new Date()).toLocaleTimeString()}) [${winston.config.colorize(<any>options.level, options.level)}] ${util.format(options.message, options.meta)}`;
+                    }
                 }),
                 new winston.transports.File({
                     dirname: logDir

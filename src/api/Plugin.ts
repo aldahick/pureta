@@ -10,7 +10,7 @@ export default abstract class Plugin {
     /**
      * Should all be relative paths
      */
-    public abstract get dirs(): {
+    public abstract dirs: {
         asset?: string[] | undefined;
         controller?: string[] | undefined;
         model?: string[] | undefined;

@@ -4,6 +4,7 @@ import * as path from "path";
 import Application from "./Application";
 import Controller from "./api/Controller";
 import Plugin from "./api/Plugin";
+import HelperFS from "./helpers/fs";
 
 export default class PluginLoader {
     public baseDir: string;
@@ -31,11 +32,16 @@ export default class PluginLoader {
         const PluginConstructor: new(app: Application) => Plugin = require(pluginFilename).default;
         this.plugin = new PluginConstructor(app);
         this.plugin.registerHandlers();
+        Object.keys(this.plugin.dirs).forEach(key => {
+            (<any>this.plugin.dirs)[key] = (<string[]>(<any>this.plugin.dirs)[key] || []).map(d => path.resolve(this.baseDir, d));
+        });
         await Promise.all([
             this.loadAssets(),
             this.loadControllers(),
             this.loadViews()
         ]);
+        app.logger.info("assets: %o", this.assets);
+        this.setupWatchers();
     }
 
     public validateMetadata(): void {
@@ -47,19 +53,28 @@ export default class PluginLoader {
     }
 
     private loadAssets(): Promise<void[]> {
-        return Promise.all(this.plugin.dirs.asset!.map(async dir => {
-            // const files: string[] = HelperFS
-        }));
+        return this.loadFlatDirs(this.plugin.dirs.asset || [], "assets");
     }
 
-    private loadControllers(): Promise<void[]> {
-        return Promise.all(this.plugin.dirs.controller!.map(async dir => {
-        }));
+    private async loadControllers(): Promise<void> {
+        // const files: string[] = await HelperFS.recursiveReaddirs(this.plugin.dirs.controller || []);
     }
 
     private loadViews(): Promise<void[]> {
-        return Promise.all(this.plugin.dirs.view!.map(async dir => {
+        return this.loadFlatDirs(this.plugin.dirs.view || [], "views");
+    }
 
+    private setupWatchers(): void {
+
+    }
+
+    private loadFlatDirs(dirs: string[], key: keyof PluginLoader): Promise<void[]> {
+        return Promise.all(dirs.map(async dir => {
+            const files: string[] = await HelperFS.recursiveReaddir(dir);
+            for (const file of files) {
+                const url = file.substring(dir.length).replace(/\\/g, "/");
+                (<{[key: string]: string}>this[key])[url] = file;
+            }
         }));
     }
 }
