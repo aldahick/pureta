@@ -25,12 +25,6 @@ export default class Configuration {
         return Object.keys(this.items);
     }
 
-    public modules(): string[] {
-        return _.uniq(this.keys()
-            .filter(k => k.startsWith("modules."))
-            .map(k => k.split(".")[1]));
-    }
-
     public buildChild(prefixes: string[] = ["global."]): Configuration {
         const items: {[key: string]: any} = {};
         for (const prefix of prefixes) {
