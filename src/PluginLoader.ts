@@ -78,7 +78,7 @@ export default class PluginLoader extends events.EventEmitter {
     }
 
     private setupWatchers(): void {
-        // TODO only if dev
+        if (!this.app.configs.global.get("dev.enable")) return;
         chokidar.watch(this.plugin.dirs.controller || [], {
             persistent: false
         }).on("change", (filename: string) => {

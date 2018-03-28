@@ -8,6 +8,8 @@ import * as _ from "lodash";
 import * as path from "path";
 import * as util from "util";
 import * as winston from "winston";
+import Configuration from "./Configuration";
+import HelperMisc from "./helpers/misc";
 import PluginLoader from "./PluginLoader";
 import Route from "./api/interfaces/Route";
 import Server from "./Server";
@@ -17,12 +19,14 @@ export default class Application extends EventEmitter {
     public logger: StackLogger = <any>{};
     public plugins: {[key: string]: PluginLoader} = {};
     public server: Server = <any>{};
+    public configs: {[key: string]: Configuration} = {};
 
     public assets: {[key: string]: string} = {};
     public routes: {[key: string]: Route} = {};
     public views: {[key: string]: string} = {};
 
     public async start(): Promise<void> {
+        await this.loadConfiguration();
         this.logger = await this.setupLogger();
         await this.loadPlugins();
         Object.keys(this.plugins).forEach(k => this.logger.stackDirs[k] = fs.realpathSync(this.plugins[k].baseDir).replace(/\\/g, "/"));
@@ -38,8 +42,17 @@ export default class Application extends EventEmitter {
         return this.server.stop();
     }
 
+    private async loadConfiguration(): Promise<void> {
+        const configDir = HelperMisc.rootDir + "/config";
+        await fs.mkdirp(configDir);
+        this.configs.root = await Configuration.load();
+        const hosts: string[] = await fs.readdir(configDir);
+        hosts.forEach(h => this.configs[h] = this.configs.root.buildChild(["global.", h + "."]));
+        delete this.configs.root;
+    }
+
     private async setupLogger(): Promise<StackLogger> {
-        const logDir = path.dirname(require.main!.filename) + "/logs";
+        const logDir = HelperMisc.rootDir + "/logs";
         await fs.mkdirp(logDir);
         const logger = new StackLogger({
             stackDirs: {

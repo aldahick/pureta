@@ -23,8 +23,9 @@ export default class GenericRequestHandler extends RequestHandler {
         if (this.req.originalUrl.includes("?")) {
             this.req.mvcFullPath += "?" + this.req.originalUrl.split("?").slice(-1)[0];
         }
-        // TODO use config to set host in baseUrl
-        // this.req.baseUrl = this
+        const host = this.config.get("http.host") + ":" + this.req.get("host")!.split(":")[1];
+        this.req.baseUrl = this.req.protocol + "://" + host + "/";
+        this.req.fullUrl = this.req.baseUrl + this.req.mvcPath.substring(1);
         const pathTokens = this.req.mvcPath.split("/");
         this.path = {
             action: pathTokens.splice(-1, 1)[0],

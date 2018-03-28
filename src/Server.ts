@@ -24,8 +24,7 @@ export default class Server {
         await this.setupMiddleware();
         this.express.all("/*", this.onRequest.bind(this));
         await new Promise<void>(resolve => {
-            // TODO use config for port and hostname
-            this.server.listen(3000, "0.0.0.0", resolve);
+            this.server.listen(this.app.configs.global.get("http.port") || 3000, "0.0.0.0", resolve);
         });
     }
 
@@ -49,8 +48,14 @@ export default class Server {
     }
 
     private onRequest(req: express.Request, res: express.Response, next: express.NextFunction): void {
+        const config = this.app.configs[req.hostname];
+        if (!config) {
+            this.app.logger.error(`Ignoring request to ${req.hostname}/${req.path}: couldn't find configs`);
+            res.sendStatus(404);
+            return;
+        }
         new GenericRequestHandler({
-            req, res, next,
+            req, res, next, config,
             app: this.app
         }).handle().catch(err => {
             this.app.logger.stackLevel = 3;

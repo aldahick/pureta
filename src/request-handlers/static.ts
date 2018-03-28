@@ -1,5 +1,7 @@
+import * as crypto from "crypto";
 import * as fs from "fs-extra";
 import * as mime from "mime";
+import HelperHTTP from "../helpers/http";
 import RequestHandler from "../api/interfaces/RequestHandler";
 
 export default class StaticRequestHandler extends RequestHandler {
@@ -13,12 +15,21 @@ export default class StaticRequestHandler extends RequestHandler {
         if (this.mimeType === "video/mp4" && this.req.headers.range) {
             return this.streamVideo();
         }
-        // TODO cache headers when !dev
-        this.res.set({
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Pragma": "no-cache",
-            "Expires": "0"
-        });
+        if (this.config.get("dev.enable")) {
+            this.res.set({
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            });
+        } else if (this.mimeType !== "application/javascript" && this.mimeType !== "text/css") { // don't cache JS and CSS
+            const hash: string = crypto.createHash("md5").update(new Buffer(this.filename + "-" + this.fileStats.mtime.getTime())).digest("hex");
+            this.res.setHeader("Cache-Control", "max-age=" + 60 * 60 * 24 * 30); // 30 days
+            this.res.setHeader("ETag", hash);
+            if (this.req.header("If-None-Match") === hash) {
+                this.res.sendStatus(HelperHTTP.codes.NotModified);
+                return;
+            }
+        }
         this.res.set({
             "Content-Type": this.mimeType,
             "Content-Length": this.fileStats.size.toString()
