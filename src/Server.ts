@@ -52,6 +52,9 @@ export default class Server {
         new GenericRequestHandler({
             req, res, next,
             app: this.app
-        }).handle().catch(err => this.app.logger.error(err));
+        }).handle().catch(err => {
+            this.app.logger.stackLevel = 3;
+            this.app.logger.error(err);
+        });
     }
 }

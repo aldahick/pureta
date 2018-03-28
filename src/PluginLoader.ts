@@ -1,12 +1,19 @@
 import { expect } from "chai";
+import * as events from "events";
 import * as fs from "fs-extra";
+import * as _ from "lodash";
 import * as path from "path";
 import HelperFS from "./helpers/fs";
+import HelperMisc from "./helpers/misc";
+import Action from "./api/interfaces/Action";
+import ActionParam from "./api/interfaces/ActionParam";
 import Application from "./Application";
+import Controller from "./api/Controller";
 import Plugin from "./api/Plugin";
 import Route from "./api/interfaces/Route";
 
-export default class PluginLoader {
+export default class PluginLoader extends events.EventEmitter {
+    public app: Application;
     public baseDir: string;
     public metadata: {
         name: string;
@@ -22,15 +29,17 @@ export default class PluginLoader {
     /** {[key: url]: filename} */
     public views: {[key: string]: string} = {};
 
-    public constructor(baseDir: string) {
+    public constructor(app: Application, baseDir: string) {
+        super();
+        this.app = app;
         this.baseDir = baseDir;
     }
 
-    public async load(app: Application): Promise<void> {
+    public async load(): Promise<void> {
         const pluginFilename: string = path.resolve(this.baseDir, this.metadata.main);
         if (!await fs.pathExists(pluginFilename)) throw new Error("Couldn't find plugin file " + pluginFilename);
         const PluginConstructor: new(app: Application) => Plugin = require(pluginFilename).default;
-        this.plugin = new PluginConstructor(app);
+        this.plugin = new PluginConstructor(this.app);
         this.plugin.registerHandlers();
         Object.keys(this.plugin.dirs).forEach(key => {
             (<any>this.plugin.dirs)[key] = (<string[]>(<any>this.plugin.dirs)[key] || []).map(d => path.resolve(this.baseDir, d));
@@ -56,7 +65,8 @@ export default class PluginLoader {
     }
 
     private async loadControllers(): Promise<void> {
-        // const files: string[] = await HelperFS.recursiveReaddirs(this.plugin.dirs.controller || []);
+        const files: string[] = await HelperFS.recursiveReaddirs(this.plugin.dirs.controller || []);
+        files.forEach(this.loadController.bind(this));
     }
 
     private loadViews(): Promise<void[]> {
@@ -66,6 +76,43 @@ export default class PluginLoader {
     private setupWatchers(): void {
 
     }
+
+    private loadController(filename: string): Route | undefined {
+        if (!filename.endsWith(".js")) return undefined;
+        const Controller: new() => Controller = require(filename).default;
+        const controller = new Controller();
+        let url = controller.route.toString();
+        if (!url.startsWith("/")) url = "/" + url; // absolute url
+        if (url.endsWith("/")) url = url.slice(0, -1); // remove trailing slash
+        const actions: Action[] = Object.getOwnPropertyNames(Controller.prototype)
+            .filter(k => k !== "constructor" && typeof(Controller.prototype[k]) === "function")
+            .map(method => {
+                const action: Partial<Action> = Reflect.getMetadata("action", controller, method) || {};
+                if (action.url && !action.url.startsWith("/")) action.url = url + "/" + action.url;
+                const params: {[key: string]: ActionParam} = {};
+                const paramTypes: Function[] = Reflect.getMetadata("design:paramtypes", controller, method) || [];
+                const optionalIndices: number[] = Reflect.getMetadata("optional", controller, method) || [];
+                HelperMisc.getFunctionParameterNames((<any>controller)[method]).forEach((name, index) =>
+                    params[name] = {
+                        name,
+                        type: paramTypes[index] || Object,
+                        isRequired: !optionalIndices.includes(index)
+                    });
+                return _.defaults<Partial<Action>, Action>(action, {
+                    name: method,
+                    url: url + "/" + method,
+                    method: "GET",
+                    params,
+                    shouldGroupParams: false
+                });
+            });
+        const route: Route = {
+            controller: Controller, url, actions
+        };
+        this.routes[route.url] = route;
+        this.emit("load:route", route);
+        return route;
+     }
 
     private loadFlatDirs(dirs: string[], key: keyof PluginLoader, transform: (filename: string) => string = f => f): Promise<void[]> {
         return Promise.all(dirs.map(async dir => {

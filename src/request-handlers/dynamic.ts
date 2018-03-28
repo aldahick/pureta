@@ -3,17 +3,15 @@ import Action from "../api/interfaces/Action";
 import Controller from "../api/Controller";
 import HelperHTTP from "../helpers/http";
 import RequestHandler from "../api/interfaces/RequestHandler";
-import Route from "../api/interfaces/Route";
 
 export default class DynamicRequestHandler extends RequestHandler {
-    private route: Route | undefined;
     private controller: Controller | undefined;
     private action: Action | undefined;
     public async handle(): Promise<void> {
-        this.route = this.app.routes[this.path.route];
-        if (this.route) {
-            this.controller = new (<any>this.route.controller)(this);
-            this.action = this.route.actions.find(a => a.url === this.req.mvcPath && a.method === this.req.method);
+        const route = this.app.routes[this.path.route];
+        if (route) {
+            this.controller = new (<any>route.controller)(this);
+            this.action = route.actions.find(a => a.url === this.req.mvcPath && a.method === this.req.method);
         }
         await this.app.emit("request", this);
         if (this.res.finished) return;
@@ -70,6 +68,22 @@ export default class DynamicRequestHandler extends RequestHandler {
     }
 
     private buildQueryParams(): any[] | undefined {
-        return [];
+        const rawParams: {[key: string]: any} = this.req[this.req.method === "GET" ? "query" : "body"] || {};
+        const checkParam = (name: string) => {
+            if (typeof(name) !== "string") return rawParams[name];
+            try {
+                return JSON.parse(rawParams[name]);
+            } catch { return rawParams[name]; }
+        };
+        if (this.action!.groupParams) {
+            Object.keys(rawParams).forEach(k => rawParams[k] = checkParam(k));
+            return [rawParams];
+        }
+        const params = Object.values(this.action!.params);
+        if (params.find(p => p.isRequired && !rawParams[p.name])) return undefined;
+        return params.map(p => {
+            if (p.type === String) return rawParams[p.name];
+            return checkParam(p.name);
+        });
     }
 }

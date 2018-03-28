@@ -68,7 +68,7 @@ export default class Application extends EventEmitter {
 
     private async loadPlugins(): Promise<void> {
         const baseDir = path.dirname(require.main!.filename);
-        let pluginLoaders: PluginLoader[] = [new PluginLoader(baseDir)];
+        let pluginLoaders: PluginLoader[] = [new PluginLoader(this, baseDir)];
         for (const loader of pluginLoaders) {
             const metadata = await fs.readJSON(loader.baseDir + "/package.json");
             loader.metadata = metadata.pureta;
@@ -85,12 +85,12 @@ export default class Application extends EventEmitter {
                     this.logger.warn(`Couldn't resolve plugin ${pluginName} (from ${loader.metadata.name})`);
                     continue;
                 }
-                pluginLoaders.push(new PluginLoader(pluginDir));
+                pluginLoaders.push(new PluginLoader(this, pluginDir));
             }
         }
         pluginLoaders = pluginLoaders.filter(loader => loader.isValid);
         this.logger.info("Found plugins: %s", pluginLoaders.map(l => l.metadata.name).sort().join(", "));
-        await Promise.all(pluginLoaders.map(loader => loader.load(this)));
+        await Promise.all(pluginLoaders.map(loader => loader.load()));
         pluginLoaders.forEach(p => {
             this.plugins[p.metadata.name] = p;
             this.assets = _.defaults(p.assets, this.assets);

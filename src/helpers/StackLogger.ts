@@ -5,6 +5,8 @@ const STACK_LEVEL = 2;
 
 export default class StackLogger extends winston.Logger {
     public stackDirs: {[key: string]: string} = {};
+    /** changes to this variable only have effect on the next log() call */
+    public stackLevel = 2;
     private stackSortedKeys: string[] = [];
 
     public constructor(options?: winston.LoggerOptions & {
@@ -18,7 +20,7 @@ export default class StackLogger extends winston.Logger {
     }
 
     public log: winston.LogMethod = (level: string, msg: string, ...meta: any[]): winston.LoggerInstance => {
-        const stack = stackTrace.parse(new Error())[STACK_LEVEL];
+        const stack = stackTrace.parse(new Error())[this.stackLevel];
         let filename = stack.getFileName().replace(/\\/g, "/");
         const stackKey = this.stackSortedKeys.find(k => filename.startsWith(this.stackDirs[k] + "/"));
         if (stackKey) {
@@ -26,6 +28,7 @@ export default class StackLogger extends winston.Logger {
             filename = filename.substring(stackDir.length + 1);
         }
         msg = `[${stackKey} | ${filename}:${stack.getLineNumber()}] ${msg}`;
+        this.stackLevel = STACK_LEVEL; // reset
         return super.log(level, msg, ...meta);
     };
 
