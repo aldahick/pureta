@@ -4,10 +4,12 @@ import * as sourcemap from "source-map-support";
 sourcemap.install();
 import { EventEmitter } from "promise-events";
 import * as fs from "fs-extra";
+import * as _ from "lodash";
 import * as path from "path";
 import * as util from "util";
 import * as winston from "winston";
 import PluginLoader from "./PluginLoader";
+import Route from "./api/interfaces/Route";
 import Server from "./Server";
 import StackLogger from "./helpers/StackLogger";
 
@@ -16,9 +18,9 @@ export default class Application extends EventEmitter {
     public plugins: {[key: string]: PluginLoader} = {};
     public server: Server = <any>{};
 
-    public constructor() {
-        super();
-    }
+    public assets: {[key: string]: string} = {};
+    public routes: {[key: string]: Route} = {};
+    public views: {[key: string]: string} = {};
 
     public async start(): Promise<void> {
         this.logger = await this.setupLogger();
@@ -26,8 +28,9 @@ export default class Application extends EventEmitter {
         Object.keys(this.plugins).forEach(k => this.logger.stackDirs[k] = fs.realpathSync(this.plugins[k].baseDir).replace(/\\/g, "/"));
         this.logger.generateStackKeys();
         await this.emit("app:start");
-        this.logger.info("Starting HTTP server...");
+        this.server = new Server(this);
         await this.server.start();
+        this.logger.info("Started HTTP server.");
     }
 
     public async stop(): Promise<void> {
@@ -50,7 +53,9 @@ export default class Application extends EventEmitter {
                         message: string,
                         meta: {[key: string]: any}
                     }): string {
-                        return `(${(options.timestamp || new Date()).toLocaleTimeString()}) [${winston.config.colorize(<any>options.level, options.level)}] ${util.format(options.message, options.meta)}`;
+                        const level = winston.config.colorize(<any>options.level, options.level);
+                        const message = Object.keys(options.meta).length ? util.format(options.message, options.meta) : options.message;
+                        return `(${(options.timestamp || new Date()).toLocaleTimeString()}) [${level}] ${message}`;
                     }
                 }),
                 new winston.transports.File({
@@ -70,18 +75,27 @@ export default class Application extends EventEmitter {
             loader.metadata.name = metadata.name;
             try { loader.validateMetadata(); }
             catch (err) {
-                this.logger.error("Found invalid metadata in plugin %s: %s", loader.baseDir, err.message);
+                this.logger.warn("Found invalid metadata in plugin %s: %s", loader.baseDir, err.message);
                 continue;
             }
             for (const pluginName of <string[]>loader.metadata.dependencies) {
                 const pluginDir = baseDir + "/node_modules/" + pluginName;
-                if (pluginLoaders.find(l => l.baseDir === pluginDir) || !await fs.pathExists(pluginDir)) continue;
+                if (pluginLoaders.find(l => l.baseDir === pluginDir)) continue;
+                if (!await fs.pathExists(pluginDir)) {
+                    this.logger.warn(`Couldn't resolve plugin ${pluginName} (from ${loader.metadata.name})`);
+                    continue;
+                }
                 pluginLoaders.push(new PluginLoader(pluginDir));
             }
         }
         pluginLoaders = pluginLoaders.filter(loader => loader.isValid);
         this.logger.info("Found plugins: %s", pluginLoaders.map(l => l.metadata.name).sort().join(", "));
         await Promise.all(pluginLoaders.map(loader => loader.load(this)));
-        pluginLoaders.forEach(p => this.plugins[p.metadata.name] = p);
+        pluginLoaders.forEach(p => {
+            this.plugins[p.metadata.name] = p;
+            this.assets = _.defaults(p.assets, this.assets);
+            this.routes = _.defaults(p.routes, this.routes);
+            this.views = _.defaults(p.views, this.views);
+        });
     }
 }

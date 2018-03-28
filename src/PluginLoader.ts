@@ -1,10 +1,10 @@
 import { expect } from "chai";
 import * as fs from "fs-extra";
 import * as path from "path";
-import Application from "./Application";
-import Controller from "./api/Controller";
-import Plugin from "./api/Plugin";
 import HelperFS from "./helpers/fs";
+import Application from "./Application";
+import Plugin from "./api/Plugin";
+import Route from "./api/interfaces/Route";
 
 export default class PluginLoader {
     public baseDir: string;
@@ -17,8 +17,8 @@ export default class PluginLoader {
     public isValid = false;
     /** {[key: url]: filename} */
     public assets: {[key: string]: string} = {};
-    /** key: route */
-    public controllers: {[key: string]: typeof Controller} = {};
+    /** key: route URL */
+    public routes: {[key: string]: Route} = {};
     /** {[key: url]: filename} */
     public views: {[key: string]: string} = {};
 
@@ -60,18 +60,18 @@ export default class PluginLoader {
     }
 
     private loadViews(): Promise<void[]> {
-        return this.loadFlatDirs(this.plugin.dirs.view || [], "views");
+        return this.loadFlatDirs(this.plugin.dirs.view || [], "views", f => f.replace(/\.pug$/, ""));
     }
 
     private setupWatchers(): void {
 
     }
 
-    private loadFlatDirs(dirs: string[], key: keyof PluginLoader): Promise<void[]> {
+    private loadFlatDirs(dirs: string[], key: keyof PluginLoader, transform: (filename: string) => string = f => f): Promise<void[]> {
         return Promise.all(dirs.map(async dir => {
             const files: string[] = await HelperFS.recursiveReaddir(dir);
             for (const file of files) {
-                const url = file.substring(dir.length).replace(/\\/g, "/");
+                const url = transform(file.substring(dir.length).replace(/\\/g, "/"));
                 (<{[key: string]: string}>this[key])[url] = file;
             }
         }));
