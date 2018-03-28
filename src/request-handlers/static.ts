@@ -5,9 +5,9 @@ import HelperHTTP from "../helpers/http";
 import RequestHandler from "../api/interfaces/RequestHandler";
 
 export default class StaticRequestHandler extends RequestHandler {
-    private filename: string;
-    private fileStats: fs.Stats;
-    private mimeType: string;
+    private filename = "";
+    private fileStats: fs.Stats = <any>{};
+    private mimeType = "";
     public async handle(): Promise<void> {
         this.filename = this.app.assets[this.req.mvcPath];
         this.mimeType = mime.getType(this.req.mvcPath) || "text/plain";
