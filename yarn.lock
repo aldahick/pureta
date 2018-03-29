@@ -1440,6 +1440,10 @@ request@2.81.0:
     tunnel-agent "^0.6.0"
     uuid "^3.0.0"
 
+require-reload@^0.2.2:
+  version "0.2.2"
+  resolved "https://registry.yarnpkg.com/require-reload/-/require-reload-0.2.2.tgz#29a7591846caf91b6e8a3cda991683f95f8d7d42"
+
 resolve-url@^0.2.1:
   version "0.2.1"
   resolved "https://registry.yarnpkg.com/resolve-url/-/resolve-url-0.2.1.tgz#2c637fe77c893afd2a663fe21aa9080068e2052a"

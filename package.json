@@ -50,6 +50,7 @@
     "promise-events": "^0.1.4",
     "recursive-readdir": "^2.2.2",
     "reflect-metadata": "^0.1.12",
+    "require-reload": "^0.2.2",
     "source-map-support": "^0.5.4",
     "stack-trace": "0.0.10",
     "winston": "^2.4.1"
