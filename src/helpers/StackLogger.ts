@@ -20,7 +20,10 @@ export default class StackLogger extends winston.Logger {
     }
 
     public log: winston.LogMethod = (level: string, msg: string, ...meta: any[]): winston.LoggerInstance => {
-        const stack = stackTrace.parse(new Error())[this.stackLevel];
+        const errIndex = (meta || []).findIndex(i => i.constructor.name.endsWith("Error"));
+        const err: Error = errIndex !== -1 ? meta.splice(errIndex, 1)[0] : new Error();
+        if (errIndex !== -1) this.stackLevel = 0;
+        const stack = stackTrace.parse(err)[this.stackLevel];
         let filename = stack.getFileName().replace(/\\/g, "/");
         const stackKey = this.stackSortedKeys.find(k => filename.startsWith(this.stackDirs[k] + "/"));
         if (stackKey) {
@@ -29,7 +32,7 @@ export default class StackLogger extends winston.Logger {
         }
         msg = `[${stackKey} | ${filename}:${stack.getLineNumber()}] ${msg}`;
         this.stackLevel = STACK_LEVEL; // reset
-        return super.log(level, msg, ...meta);
+        return super.log(level, msg, meta);
     };
 
     public generateStackKeys(): void {
