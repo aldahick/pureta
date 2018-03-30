@@ -8,29 +8,26 @@ import GenericRequestHandler from "./request-handlers/generic";
 export default class Server {
     public app: Application;
     public express: express.Application;
-    public server: http.Server;
+    public server: http.Server | undefined;
     public middleware: {[key: string]: express.Handler} = {};
 
     public constructor(app: Application) {
         this.app = app;
         this.express = express();
-        this.server = http.createServer(this.express);
     }
 
-    public async start(): Promise<void> {
+    public async start(): Promise<number> {
         // don't want to start server if it's already started
-        if (this.server.listening) return Promise.resolve();
+        if (this.server !== undefined) return -1;
         await this.app.emit("server:init");
         await this.setupMiddleware();
-        this.express.all("/*", this.onRequest.bind(this));
-        await new Promise<void>(resolve => {
-            this.server.listen(this.app.configs.global.get("http.port") || 3000, "0.0.0.0", resolve);
-        });
+        this.express.use(this.onRequest.bind(this));
+        return await this.startHttpServer();
     }
 
     public stop(): Promise<void> {
         // can't stop it if it isn't started
-        if (!this.server.listening) return Promise.resolve();
+        if (this.server === undefined) return Promise.resolve();
         return new Promise<void>(this.server.close.bind(this.server));
     }
 
@@ -47,19 +44,34 @@ export default class Server {
         });
     }
 
+    private startHttpServer(): Promise<number> {
+        this.server = http.createServer(this.express);
+        const port: number = this.app.configs.global.get("http.port") || 3000;
+        return new Promise<number>(resolve => {
+            this.server!.listen(port, "0.0.0.0", () => resolve(port));
+        });
+    }
+
     private onRequest(req: express.Request, res: express.Response, next: express.NextFunction): void {
         const config = this.app.configs[req.hostname];
         if (!config) {
-            this.app.logger.error(`Ignoring request to ${req.hostname}/${req.path}: couldn't find configs`);
+            this.app.logger.error(`Ignoring request to ${req.hostname}${req.path}: couldn't find configs`);
             res.sendStatus(404);
             return;
         }
+        const oldSend = res.send.bind(res);
+        res.send = function(body?: any) {
+            const ret = oldSend(body);
+            this.write("\n");
+            this.finished = true;
+            this.connection.end();
+            return ret;
+        };
         new GenericRequestHandler({
             req, res, next, config,
             app: this.app
         }).handle().catch(err => {
-            this.app.logger.stackLevel = 3;
-            this.app.logger.error(err);
+            this.app.logger.error(err, err);
         });
     }
 }

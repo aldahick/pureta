@@ -8,7 +8,7 @@ export default class GenericRequestHandler extends RequestHandler {
         const assetFilename = await this.getAssetFile();
         const Handler = assetFilename ? StaticRequestHandler : DynamicRequestHandler;
         try {
-            await new Handler(this).handle();
+            await (new Handler(this).handle());
         } catch (err) {
             if (!isNaN(Number(err.message))) await this.renderError(Number(err.message));
             else throw err;

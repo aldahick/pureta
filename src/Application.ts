@@ -33,8 +33,8 @@ export default class Application extends EventEmitter {
         this.logger.generateStackKeys();
         await this.emit("app:start");
         this.server = new Server(this);
-        await this.server.start();
-        this.logger.info("Started HTTP server.");
+        const port = await this.server.start();
+        this.logger.info(`Started HTTP server on port ${port}.`);
     }
 
     public async stop(): Promise<void> {
@@ -102,7 +102,7 @@ export default class Application extends EventEmitter {
             }
         }
         pluginLoaders = pluginLoaders.filter(loader => loader.isValid);
-        this.logger.info("Found plugins: %s", pluginLoaders.map(l => l.metadata.name).sort().join(", "));
+        this.logger.info("Found plugins: " + pluginLoaders.map(l => l.metadata.name).sort().join(", "));
         await Promise.all(pluginLoaders.map(async loader => {
             loader.on("load:route", (route: Route) => {
                 this.routes[route.url] = route;

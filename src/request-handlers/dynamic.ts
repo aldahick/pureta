@@ -18,9 +18,7 @@ export default class DynamicRequestHandler extends RequestHandler {
         if (!(this.controller && this.action)) {
             return await this.serveView();
         }
-        if (await this.callController()) {
-            this.serveView();
-        }
+        await this.callController();
     }
 
     private async callController(): Promise<void> {
@@ -32,7 +30,7 @@ export default class DynamicRequestHandler extends RequestHandler {
         try {
             result = await (<any>this.controller!)[this.action!.name].apply(this.controller, queryParams);
         } catch (err) {
-            this.app.logger.error(err);
+            this.app.logger.error(err, err);
             throw new Error(HelperHTTP.codes.InternalError.toString());
         }
         if (this.res.finished) return;
